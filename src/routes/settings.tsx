@@ -129,6 +129,16 @@ function SettingsPage() {
           onChange={(v) => updateSettings({ recoveryMode: v })}
         />
         <div className="mt-3">
+          <Toggle
+            label="Always analyse recovery trades"
+            checked={s.smartRecovery !== false}
+            onChange={(b) => updateSettings({ smartRecovery: b })}
+          />
+          <p className="mb-3 mt-1 text-xs text-muted-foreground">
+            Recovery waits for an entry point even when analysis is off: over 1–3 / under 7–8 after 80%+ hits and an opposite last digit, differs on rare digits, and even/odd or rise/fall after 2 opposite ticks in a row.
+          </p>
+        </div>
+        <div className="mt-3">
           <NumField
             label="Minimum loss coverage (%)"
             value={s.recoveryCoverage}
