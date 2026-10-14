@@ -107,7 +107,7 @@ a[href*="lovable.dev/?utm"] {
 
 @layer components {
   .license-video { @apply pointer-events-none absolute inset-0 h-full w-full object-cover; filter: saturate(1.2) brightness(0.85); animation: license-glow 4s ease-in-out infinite; }
-  .license-veil { @apply pointer-events-none absolute inset-0; background: radial-gradient(ellipse at center, oklch(0 0 0 / 15%) 0%, var(--background) 95%); }
+  .license-veil { @apply pointer-events-none absolute inset-0; background: radial-gradient(ellipse at center, transparent 30%, var(--background) 100%); }
 }
 @keyframes license-glow {
   0%, 100% { filter: saturate(1.2) brightness(0.8) drop-shadow(0 0 0 transparent); }
