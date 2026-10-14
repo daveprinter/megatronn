@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { checkLicense, enterLicense } from "@/lib/license.functions";
+import megatronVideo from "@/assets/megatron.mp4.asset.json";
 
 type Phase = "checking" | "locked" | "ok";
 
@@ -8,6 +9,7 @@ export function LicenseGate({ children }: { children: ReactNode }) {
   const [code, setCode] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  const [show, setShow] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -26,8 +28,10 @@ export function LicenseGate({ children }: { children: ReactNode }) {
   if (phase === "ok") return <>{children}</>;
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
-      <div className="panel w-full max-w-sm text-center">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4">
+      <video className="license-video" src={megatronVideo.url} autoPlay muted loop playsInline aria-hidden="true" />
+      <div className="license-veil" aria-hidden="true" />
+      <div className="panel relative z-10 w-full max-w-sm text-center backdrop-blur-md">
         <div className="font-display text-2xl font-bold tracking-wider glow-text">MEGATRON AI</div>
         {phase === "checking" ? (
           <p className="mt-4 animate-pulse text-sm text-muted-foreground">Checking the license code…</p>
@@ -51,14 +55,24 @@ export function LicenseGate({ children }: { children: ReactNode }) {
           >
             <label className="block">
               <span className="field-label">Enter license code</span>
+              <div className="relative">
               <input
-                className="input"
-                type="password"
+                className="input pr-16"
+                type={show ? "text" : "password"}
                 autoComplete="off"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 autoFocus
               />
+              <button
+                type="button"
+                onClick={() => setShow((v) => !v)}
+                className="absolute inset-y-0 right-2 my-auto h-7 rounded px-2 text-xs font-semibold text-primary hover:bg-muted"
+                aria-label={show ? "Hide license code" : "Show license code"}
+              >
+                {show ? "Hide" : "Show"}
+              </button>
+              </div>
             </label>
             {err && <p className="text-sm text-destructive">{err}</p>}
             <button className="btn-primary w-full" disabled={busy || !code}>

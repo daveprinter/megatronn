@@ -3,7 +3,7 @@ import { feed } from "./feed";
 import { startKeepAlive, stopKeepAlive } from "./keepalive";
 import { coverage, estProfitRatio, martingaleStake, MIN_STAKE, round2 } from "./martingale";
 import { learnFromTrade, payoutRatio } from "./payouts";
-import { analyse, type Signal } from "./signals";
+import { analyse, normalPreference, recoverySignals, type Signal } from "./signals";
 import { learn, learnedAvoid, learnedScore, note } from "./learning";
 import {
   addError,
@@ -416,8 +416,21 @@ async function tickLoop() {
 }
 
 /** Scan active markets and return the best one with live entry signals. */
+function isRecovering() {
+  const st = getState().settings;
+  return st.mgEnabled && lossAccum > 0 && mgStep > 0 && mgStep < st.mgMaxSteps;
+}
+
 function findSignal(): { symbol: string; cands: Signal[] } | null {
   const st = getState().settings;
+  if (st.smartRecovery !== false && isRecovering()) {
+    // recovery always waits for an analysed entry, whatever the analysis setting
+    const m = getState().engine.market;
+    const b = priceBuf[m];
+    if (!b) return null;
+    const cands = recoverySignals(b.digits, b.prices).filter((c) => !learnedAvoid(m, c.type, c.pred));
+    return cands.length ? { symbol: m, cands } : null;
+  }
   if (!st.analysis) {
     const m = getState().engine.market;
     if (lastPrice[m] === undefined) return null;
@@ -529,7 +542,7 @@ function baseStake(c: Signal) {
 }
 
 function pick(cands: Signal[], symbol: string): Signal {
-  const sc = (c: Signal) => c.edge * typePerf(c.type) * (c.type === lastType ? 0.9 : 1) * learnedScore(symbol, c.type, c.pred);
+  const sc = (c: Signal) => c.edge * normalPreference(c) * typePerf(c.type) * (c.type === lastType ? 0.9 : 1) * learnedScore(symbol, c.type, c.pred);
   return [...cands].sort((a, b) => sc(b) - sc(a))[0]!;
 }
 
