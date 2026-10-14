@@ -65,6 +65,7 @@ export interface Settings {
   mgMaxSteps: number;
   recoveryMode: "same" | "different" | "auto";
   recoveryCoverage: number; // percent
+  smartRecovery: boolean; // recovery always waits for an analysed entry, even with analysis off
   tradeSpeed: "normal" | "tick";
   analysis: boolean; // false = "No Analysis": enter immediately on launch
 }
@@ -140,6 +141,7 @@ export const defaultSettings: Settings = {
   mgMaxSteps: 3,
   recoveryMode: "auto",
   recoveryCoverage: 80,
+  smartRecovery: true,
   tradeSpeed: "normal",
   analysis: true,
 };
