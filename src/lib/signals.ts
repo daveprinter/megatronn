@@ -93,3 +93,68 @@ export function analyse(
   }
   return out;
 }
+
+/**
+ * Recovery entries: always analysed (even when normal analysis is off) and
+ * restricted to lower-risk contracts. Each one waits for a concrete trigger.
+ */
+export const RECOVERY_SHARE = 0.8; // over/under must have hit at least this share of recent ticks
+export const RECOVERY_RUN = 2; // consecutive same-side ticks needed before fading them
+
+export function recoverySignals(digits: number[], prices: number[]): Signal[] {
+  const out: Signal[] = [];
+  if (digits.length < 30) return out;
+  const last = digits[digits.length - 1]!;
+  const w = digits.slice(-25);
+  const share = (f: (d: number) => boolean) => w.filter(f).length / w.length;
+
+  // Over 1/2/3: digits above the barrier dominate AND the last digit is below it.
+  for (const d of [1, 2, 3]) {
+    const obs = share((x) => x > d);
+    if (obs >= RECOVERY_SHARE && last < d) {
+      const theo = (9 - d) / 10;
+      out.push({ type: "OVER", pred: d, prob: Math.min(0.95, (obs + theo) / 2), edge: obs - theo, reason: `recovery: over ${d} hit ${pct(obs)} of last 25, entry on low digit ${last}` });
+    }
+  }
+  // Under 7/8: mirror of the above.
+  for (const d of [8, 7]) {
+    const obs = share((x) => x < d);
+    if (obs >= RECOVERY_SHARE && last > d) {
+      const theo = d / 10;
+      out.push({ type: "UNDER", pred: d, prob: Math.min(0.95, (obs + theo) / 2), edge: obs - theo, reason: `recovery: under ${d} hit ${pct(obs)} of last 25, entry on high digit ${last}` });
+    }
+  }
+  // Differs: a rare digit that has not shown up recently.
+  const recent = digits.slice(-8);
+  for (let d = 0; d <= 9; d++) {
+    const f = share((x) => x === d);
+    if (f <= 0.04 && !recent.includes(d)) out.push({ type: "DIFFERS", pred: d, prob: 0.93, edge: 0.03, reason: `recovery: digit ${d} only ${pct(f)} and absent last 8 ticks` });
+  }
+  // Even / Odd: fade a run of the same parity.
+  let run = 1;
+  for (let i = digits.length - 2; i >= 0 && digits[i]! % 2 === last % 2; i--) run++;
+  if (run >= RECOVERY_RUN) {
+    const wantEven = last % 2 !== 0;
+    out.push({ type: wantEven ? "EVEN" : "ODD", prob: 0.52, edge: 0.02, reason: `recovery: ${run} ${wantEven ? "odd" : "even"} digits in a row, entering ${wantEven ? "even" : "odd"}` });
+  }
+  // Rise / Fall: fade consecutive moves in one direction.
+  if (prices.length >= 5) {
+    const dir = (i: number) => Math.sign(prices[i]! - prices[i - 1]!);
+    const lastDir = dir(prices.length - 1);
+    let moves = 0;
+    for (let i = prices.length - 1; i >= 1 && dir(i) === lastDir && lastDir !== 0; i--) moves++;
+    if (moves >= RECOVERY_RUN) {
+      const t = lastDir > 0 ? "FALL" : "RISE";
+      out.push({ type: t, prob: 0.52, edge: 0.02, reason: `recovery: ${moves} ${lastDir > 0 ? "rises" : "falls"} in a row, entering ${t.toLowerCase()}` });
+    }
+  }
+  return out;
+}
+
+/** Normal-trading preference: favour low-risk over/under, de-prioritise even/odd/rise/fall. */
+export function normalPreference(s: Signal): number {
+  if (s.type === "UNDER" && (s.pred === 9 || s.pred === 8)) return 1.4;
+  if (s.type === "OVER" && s.pred !== undefined && s.pred <= 2) return 1.4;
+  if (s.type === "OVER" || s.type === "UNDER" || s.type === "DIFFERS") return 1;
+  return 0.4;
+}
